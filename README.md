@@ -60,7 +60,7 @@ message_rate: 1000000 # Messages per second
 ### 4. Running Locally
 Run the producer locally:
 ```bash
-go run main.go
+go run cmd/producer/main.go
 ```
 
 Or build and execute:
