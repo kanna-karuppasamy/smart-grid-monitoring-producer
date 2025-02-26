@@ -1,58 +1,96 @@
 package kafka
 
 import (
+	"context"
 	"encoding/json"
-	"fmt"
-	"sync"
+	"log"
+	"time"
 
-	"github.com/IBM/sarama"
-	models "github.com/kanna-karuppasamy/smart-grid-monitoring-producer/internal/models"
+	"github.com/Shopify/sarama"
+	"github.com/kanna-karuppasamy/smart-grid-monitoring-producer/internal/config"
 )
 
+// Producer is responsible for publishing messages to Kafka
 type Producer struct {
 	producer sarama.SyncProducer
+	config   config.KafkaConfig
 }
 
-func NewProducer(broker string) (*Producer, error) {
-	config := sarama.NewConfig()
-	config.Producer.RequiredAcks = sarama.WaitForAll
-	config.Producer.Retry.Max = 5
-	config.Producer.Return.Successes = true
-	config.Producer.Flush.Messages = 1000                  // Try increasing batch size
-	config.Producer.Compression = sarama.CompressionSnappy // Compress messages
+// NewProducer creates a new Kafka producer
+func NewProducer(cfg config.KafkaConfig) (*Producer, error) {
+	// Create Kafka producer configuration
+	kafkaConfig := sarama.NewConfig()
+	kafkaConfig.Producer.Return.Successes = true
+	kafkaConfig.Producer.Return.Errors = true
 
-	producer, err := sarama.NewSyncProducer([]string{broker}, config)
+	// Enable compression if specified
+	switch cfg.Compression {
+	case "gzip":
+		kafkaConfig.Producer.Compression = sarama.CompressionGZIP
+	case "snappy":
+		kafkaConfig.Producer.Compression = sarama.CompressionSnappy
+	case "lz4":
+		kafkaConfig.Producer.Compression = sarama.CompressionLZ4
+	case "zstd":
+		kafkaConfig.Producer.Compression = sarama.CompressionZSTD
+	default:
+		kafkaConfig.Producer.Compression = sarama.CompressionNone
+	}
+
+	kafkaConfig.Producer.Flush.Frequency = time.Duration(cfg.LingerMs)
+	kafkaConfig.Producer.RequiredAcks = sarama.NoResponse
+
+	// Create producer
+	producer, err := sarama.NewSyncProducer(cfg.Brokers, kafkaConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create Kafka producer: %v", err)
+		return nil, err
 	}
 
-	return &Producer{producer: producer}, nil
+	return &Producer{
+		producer: producer,
+		config:   cfg,
+	}, nil
 }
 
-func (p *Producer) Close() {
-	p.producer.Close()
+// Publish publishes a single message to Kafka
+func (p *Producer) Publish(ctx context.Context, topic string, message interface{}) error {
+	jsonData, err := json.Marshal(message)
+	if err != nil {
+		return err
+	}
+
+	msg := &sarama.ProducerMessage{
+		Topic:     topic,
+		Value:     sarama.ByteEncoder(jsonData),
+		Timestamp: time.Now(),
+	}
+
+	_, _, err = p.producer.SendMessage(msg)
+	return err
 }
 
-func SendToKafka(producer *Producer, transactions []models.Transaction, topic string, wg *sync.WaitGroup) {
-	defer wg.Done()
+// PublishBatch publishes a batch of messages to Kafka
+func (p *Producer) PublishBatch(ctx context.Context, topic string, messages []interface{}) error {
+	batch := make([]*sarama.ProducerMessage, len(messages))
 
-	for _, transaction := range transactions {
-		jsonData, err := json.Marshal(transaction)
+	for i, message := range messages {
+		jsonData, err := json.Marshal(message)
 		if err != nil {
-			fmt.Printf("Error marshaling transaction: %v\n", err)
+			log.Printf("Failed to marshal message: %v", err)
 			continue
 		}
 
-		msg := &sarama.ProducerMessage{
-			Topic: topic,
-			Key:   sarama.StringEncoder(transaction.MeterID),
-			Value: sarama.ByteEncoder(jsonData),
-		}
-
-		_, _, err = producer.producer.SendMessage(msg)
-		if err != nil {
-			fmt.Printf("Error sending message: %v\n", err)
-			continue
+		batch[i] = &sarama.ProducerMessage{
+			Topic:     topic,
+			Value:     sarama.ByteEncoder(jsonData),
+			Timestamp: time.Now(),
 		}
 	}
+
+	return p.producer.SendMessages(batch)
+}
+
+// Close closes the Kafka producer
+func (p *Producer) Close() error {
+	return p.producer.Close()
 }
