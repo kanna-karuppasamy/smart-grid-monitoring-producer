@@ -71,8 +71,7 @@ Edit the configuration in `config.json` or use environment variables:
   },
   "generator": {
     "totalTransactions": 1000000,
-    "transactionsPerSecond": 1000,
-    "meterCount": 5000,
+    "meterCount": 10,
     "faultProbability": 0.01,
     "offlineProbability": 0.005
   }

@@ -25,12 +25,11 @@ type KafkaConfig struct {
 
 // GeneratorConfig holds data generation configuration
 type GeneratorConfig struct {
-	TotalTransactions     int      `json:"totalTransactions"`
-	TransactionsPerSecond int      `json:"transactionsPerSecond"`
-	MeterCount            int      `json:"meterCount"`
-	FaultProbability      float64  `json:"faultProbability"`
-	OfflineProbability    float64  `json:"offlineProbability"`
-	Regions               []Region `json:"regions"`
+	TotalTransactions  int      `json:"totalTransactions"`
+	MeterCount         int      `json:"meterCount"`
+	FaultProbability   float64  `json:"faultProbability"`
+	OfflineProbability float64  `json:"offlineProbability"`
+	Regions            []Region `json:"regions"`
 }
 
 // Region represents a geographic region for data generation
@@ -48,19 +47,18 @@ func DefaultConfig() *Config {
 	return &Config{
 		Kafka: KafkaConfig{
 			Brokers:         []string{"localhost:9092"},
-			Topic:           "energy-transactions",
-			BatchSize:       10000,
-			Compression:     "lz4",
-			RequiredAcks:    0,
-			MaxMessageBytes: 1000000,
-			LingerMs:        5,
+			Topic:           "smart-grid-readings",
+			BatchSize:       20000,   // Increase batch size
+			Compression:     "lz4",   // Zstd is faster & compresses better than lz4
+			RequiredAcks:    1,       // Use 1 instead of 0 to avoid excessive retries
+			MaxMessageBytes: 2000000, // Increase max message size
+			LingerMs:        20,      // Increase linger time for better batching
 		},
 		Generator: GeneratorConfig{
-			TotalTransactions:     0,
-			TransactionsPerSecond: 100000,
-			MeterCount:            100,
-			FaultProbability:      0.01,
-			OfflineProbability:    0.005,
+			TotalTransactions:  0,
+			MeterCount:         1,
+			FaultProbability:   0.01,
+			OfflineProbability: 0.005,
 			Regions: []Region{
 				{
 					Name:      "Urban",
