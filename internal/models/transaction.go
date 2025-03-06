@@ -39,10 +39,11 @@ type Transaction struct {
 // MeterInfo contains information about a smart meter
 // This can be used for listing meters with faults or generating metrics
 type MeterInfo struct {
-	ID           string       `json:"id"`
-	Status       MeterStatus  `json:"status"`
-	Region       string       `json:"region"`
-	BuildingType BuildingType `json:"buildingType"`
-	Latitude     float64      `json:"latitude"`
-	Longitude    float64      `json:"longitude"`
+	ID                  string       `json:"id"`
+	Status              MeterStatus  `json:"status"`
+	Region              string       `json:"region"`
+	BuildingType        BuildingType `json:"buildingType"`
+	Latitude            float64      `json:"latitude"`
+	Longitude           float64      `json:"longitude"`
+	PeakLoadProbability float64      `json:"peakLoadProbability"`
 }

@@ -20,12 +20,13 @@ type Generator struct {
 
 // meterData holds the persistent data for a single meter
 type meterData struct {
-	MeterID         string
-	Region          string
-	Latitude        float64
-	Longitude       float64
-	BuildingType    models.BuildingType
-	BaseConsumption float64
+	MeterID             string
+	Region              string
+	Latitude            float64
+	Longitude           float64
+	BuildingType        models.BuildingType
+	BaseConsumption     float64
+	PeakLoadProbability float64
 }
 
 // NewGenerator creates a new data generator with the provided configuration
@@ -81,14 +82,21 @@ func (g *Generator) initializeMeters() {
 			baseConsumption = 15 + g.rnd.Float64()*25 // 15-40 kWh
 		}
 
+		// Set peak load probability
+		peakLoadProbability := 1.0 // Default probability
+		if g.rnd.Float64() < 0.8 { // 80% of meters have 0% chance of peak load
+			peakLoadProbability = 0.0
+		}
+
 		// Save meter data
 		g.meters[meterId] = &meterData{
-			MeterID:         meterId,
-			Region:          region.Name,
-			Latitude:        lat,
-			Longitude:       long,
-			BuildingType:    buildingType,
-			BaseConsumption: baseConsumption,
+			MeterID:             meterId,
+			Region:              region.Name,
+			Latitude:            lat,
+			Longitude:           long,
+			BuildingType:        buildingType,
+			BaseConsumption:     baseConsumption,
+			PeakLoadProbability: peakLoadProbability,
 		}
 	}
 }
@@ -109,7 +117,19 @@ func (g *Generator) selectRegion() config.Region {
 	return g.regions[len(g.regions)-1]
 }
 
-// GenerateTransaction creates a new mock transaction
+func (g *Generator) getPeakLoadThreshold(buildingType models.BuildingType) float64 {
+	switch buildingType {
+	case models.BuildingResidential:
+		return 5.0 // Increased from 2.0 kWh
+	case models.BuildingCommercial:
+		return 15.0 // Increased from 8.0 kWh
+	case models.BuildingIndustrial:
+		return 50.0 // Increased from 30.0 kWh
+	default:
+		return 10.0 // Default threshold
+	}
+}
+
 func (g *Generator) GenerateTransaction() models.Transaction {
 	// Pick a random meter
 	meterIds := make([]string, 0, len(g.meters))
@@ -153,8 +173,12 @@ func (g *Generator) GenerateTransaction() models.Transaction {
 			consumption *= 0.3 // Drop
 		}
 	} else if status == models.StatusOffline {
-		consumption = 0
+		consumption = 0.0
 	}
+
+	// Determine peak load status based on energy consumption and meter's peak load probability
+	peakLoadThreshold := g.getPeakLoadThreshold(meter.BuildingType)
+	peakLoad := consumption > peakLoadThreshold && g.rnd.Float64() < meter.PeakLoadProbability
 
 	// Create transaction
 	tx := models.Transaction{
@@ -167,7 +191,7 @@ func (g *Generator) GenerateTransaction() models.Transaction {
 		Region:         meter.Region,
 		Status:         status,
 		BuildingType:   meter.BuildingType,
-		PeakLoad:       hour >= 17 && hour <= 21, // Evening peak
+		PeakLoad:       peakLoad, // Set peak load based on consumption and probability
 	}
 
 	return tx

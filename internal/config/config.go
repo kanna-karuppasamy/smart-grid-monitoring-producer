@@ -56,7 +56,7 @@ func DefaultConfig() *Config {
 		},
 		Generator: GeneratorConfig{
 			TotalTransactions:  0,
-			MeterCount:         1,
+			MeterCount:         1000,
 			FaultProbability:   0.01,
 			OfflineProbability: 0.005,
 			Regions: []Region{
