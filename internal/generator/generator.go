@@ -27,6 +27,7 @@ type meterData struct {
 	BuildingType        models.BuildingType
 	BaseConsumption     float64
 	PeakLoadProbability float64
+	faultProbability    float64
 }
 
 // NewGenerator creates a new data generator with the provided configuration
@@ -88,6 +89,12 @@ func (g *Generator) initializeMeters() {
 			peakLoadProbability = 0.0
 		}
 
+		// Set peak load probability
+		faultProbability := 1.0    // Default probability
+		if g.rnd.Float64() < 0.8 { // 80% of meters have 0% chance of peak load
+			faultProbability = 0.0
+		}
+
 		// Save meter data
 		g.meters[meterId] = &meterData{
 			MeterID:             meterId,
@@ -97,6 +104,7 @@ func (g *Generator) initializeMeters() {
 			BuildingType:        buildingType,
 			BaseConsumption:     baseConsumption,
 			PeakLoadProbability: peakLoadProbability,
+			faultProbability:    faultProbability,
 		}
 	}
 }
@@ -145,7 +153,7 @@ func (g *Generator) GenerateTransaction() models.Transaction {
 
 	// Determine meter status (operational, fault, or offline)
 	status := models.StatusOperational
-	if g.rnd.Float64() < g.config.FaultProbability {
+	if g.rnd.Float64() < g.config.FaultProbability && meter.faultProbability > 0 {
 		status = models.StatusFault
 	} else if g.rnd.Float64() < g.config.OfflineProbability {
 		status = models.StatusOffline
