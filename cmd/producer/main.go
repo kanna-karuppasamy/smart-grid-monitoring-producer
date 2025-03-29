@@ -17,6 +17,8 @@ import (
 )
 
 func main() {
+	log.SetOutput(os.Stdout)
+
 	// Load configuration
 	cfg, err := config.Load()
 	if err != nil {

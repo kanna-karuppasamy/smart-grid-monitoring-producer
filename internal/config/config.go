@@ -48,7 +48,7 @@ func DefaultConfig() *Config {
 		Kafka: KafkaConfig{
 			Brokers:         []string{"localhost:9092"},
 			Topic:           "smart-grid-readings",
-			BatchSize:       20000,   // Increase batch size
+			BatchSize:       5000,    // Increase batch size
 			Compression:     "lz4",   // Zstd is faster & compresses better than lz4
 			RequiredAcks:    1,       // Use 1 instead of 0 to avoid excessive retries
 			MaxMessageBytes: 2000000, // Increase max message size
@@ -56,7 +56,7 @@ func DefaultConfig() *Config {
 		},
 		Generator: GeneratorConfig{
 			TotalTransactions:  0,
-			MeterCount:         1000,
+			MeterCount:         100,
 			FaultProbability:   0.01,
 			OfflineProbability: 0.005,
 			Regions: []Region{
